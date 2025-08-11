@@ -94,51 +94,7 @@ async function addRobotInstance(db, instanceData) {
 }
 
 /**
- * Updates an existing robot instance by adding a new part to its assignedParts array.
- * This uses a single, atomic MongoDB operation to prevent race conditions.
- * @param {object} db - The MongoDB database client.
- * @param {string} id - The ID of the robot instance to update.
- * @param {object} newPartData - The new part object to add to the array.
- * @returns {Promise<object|null>} The updated robot instance document, or null if not found.
- */
-async function addPartToRobotInstance(db, id, newPartData) {
-    const collection = db.collection(instancesCollectionName);
-    const instanceId = new ObjectId(id);
-
-    // Create a history entry for the change
-    const historyEntry = {
-        timestamp: new Date(),
-        action: 'Part Assigned',
-        details: `Part with barcode ${newPartData.barcode} added`,
-        changes: [{
-            field: 'assignedParts',
-            oldValue: null, // Since we don't have the old array, we can note this.
-            newValue: newPartData
-        }]
-    };
-
-    // Use $push to add the new part to the array and $push to add the history entry
-    const result = await collection.updateOne(
-        { _id: instanceId },
-        {
-            $push: {
-                assignedParts: newPartData,
-                history: historyEntry
-            }
-        }
-    );
-
-    // If a document was modified, return the updated document
-    if (result.modifiedCount > 0) {
-        return await collection.findOne({ _id: instanceId });
-    }
-
-    return null; // Return null if the instance was not found
-}
-
-/**
- * Updates an existing robot instance in the database for general fields.
- * This function now handles everything BUT adding/removing parts.
+ * Updates an existing robot instance in the database.
  * @param {object} db - The MongoDB database client.
  * @param {string} id - The ID of the robot instance to update.
  * @param {object} updatedFields - The fields to update.
@@ -151,22 +107,16 @@ async function updateRobotInstance(db, id, updatedFields) {
     if (!currentInstance) {
         return null;
     }
-
-    // We filter out the 'assignedParts' field from general updates
-    const fieldsToUpdate = { ...updatedFields };
-    delete fieldsToUpdate.assignedParts;
-
     const changes = [];
-    for (const key in fieldsToUpdate) {
-        if (fieldsToUpdate[key] !== currentInstance[key]) {
+    for (const key in updatedFields) {
+        if (updatedFields[key] !== currentInstance[key]) {
             changes.push({
                 field: key,
                 oldValue: currentInstance[key],
-                newValue: fieldsToUpdate[key]
+                newValue: updatedFields[key]
             });
         }
     }
-
     if (changes.length > 0) {
         const historyEntry = {
             timestamp: new Date(),
@@ -177,7 +127,7 @@ async function updateRobotInstance(db, id, updatedFields) {
         await collection.updateOne(
             { _id: instanceId },
             {
-                $set: { ...fieldsToUpdate },
+                $set: { ...updatedFields },
                 $push: { history: historyEntry }
             }
         );
