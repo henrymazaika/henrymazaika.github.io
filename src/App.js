@@ -277,73 +277,89 @@ const RobotManagement = ({
   };
 
   const handleAssignPart = async () => {
+    // Check for selected instance and barcode
     if (!selectedInstance || !assignPartBarcode) {
-      setMessage("Please select a robot instance and enter a part barcode.");
-      return;
+        setMessage("Please select a robot instance and enter a part barcode.");
+        return;
     }
 
+    // Find the part to assign (this part of the logic is fine)
     const partToAssign = parts.find(p => p.barcode === assignPartBarcode);
     if (!partToAssign) {
-      setMessage(`Part with barcode '${assignPartBarcode}' not found.`);
-      return;
+        setMessage(`Part with barcode '${assignPartBarcode}' not found.`);
+        return;
     }
 
-    // Find the design for this instance
+    // Find the design for this instance (this is also fine)
     const design = robotDesigns.find(d => d._id === selectedInstance.designId);
     if (!design) {
-      setMessage("Robot design not found for this instance.");
-      return;
+        setMessage("Robot design not found for this instance.");
+        return;
     }
 
     // Check if the part type is required by the design
     const requiredPart = design.requiredParts.find(req => req.type === partToAssign.type);
     if (!requiredPart) {
-      setMessage(`Part type '${partToAssign.type}' is not required by this robot design.`);
-      return;
+        setMessage(`Part type '${partToAssign.type}' is not required by this robot design.`);
+        return;
     }
-
-    // Check if the required quantity is already fulfilled
-    const partsOfTypeAssigned = selectedInstance.assignedParts.filter(p => p.type === partToAssign.type).length;
-    if (partsOfTypeAssigned >= requiredPart.quantity) {
-      setMessage(`All required parts of type '${partToAssign.type}' are already assigned.`);
-      return;
-    }
-
-    // Check if the part is already assigned to this or another robot
-    const isPartAlreadyAssigned = robotInstances.some(instance =>
-      instance.assignedParts.some(p => p._id === partToAssign._id)
-    );
-    if (isPartAlreadyAssigned) {
-      setMessage(`Part with barcode '${assignPartBarcode}' is already assigned to a robot.`);
-      return;
-    }
-
-    const updatedAssignedParts = [...selectedInstance.assignedParts, {
-      _id: partToAssign._id,
-      barcode: partToAssign.barcode,
-      type: partToAssign.type,
-      partVersion: partToAssign.partVersion
-    }];
 
     try {
-      const response = await fetch(`${ROBOT_INSTANCES_API_URL}?id=${selectedInstance._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignedParts: updatedAssignedParts }),
-      });
+        // Step 1: GET the most current robot instance data from the database.
+        const getResponse = await fetch(`${ROBOT_INSTANCES_API_URL}?id=${selectedInstance._id}`);
+        if (!getResponse.ok) {
+            throw new Error(`Failed to fetch current robot instance: ${getResponse.status}`);
+        }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        const currentInstance = await getResponse.json();
 
-      await fetchData();
-      setMessage("Part assigned successfully!");
-      setAssignPartBarcode('');
+        // Step 2: Use the fresh data for all subsequent checks and logic.
+        // Check if the required quantity is already fulfilled using the fresh data.
+        const partsOfTypeAssigned = currentInstance.assignedParts.filter(p => p.type === partToAssign.type).length;
+        if (partsOfTypeAssigned >= requiredPart.quantity) {
+            setMessage(`All required parts of type '${partToAssign.type}' are already assigned.`);
+            return;
+        }
+
+        // Check if the part is already assigned to this or another robot.
+        // We still use the full `robotInstances` state here because it's a global check.
+        const isPartAlreadyAssigned = robotInstances.some(instance =>
+            instance.assignedParts.some(p => p._id === partToAssign._id)
+        );
+        if (isPartAlreadyAssigned) {
+            setMessage(`Part with barcode '${assignPartBarcode}' is already assigned to a robot.`);
+            return;
+        }
+
+        // Construct the new assignedParts array using the fresh data from the GET request.
+        const updatedAssignedParts = [...currentInstance.assignedParts, {
+            _id: partToAssign._id,
+            barcode: partToAssign.barcode,
+            type: partToAssign.type,
+            partVersion: partToAssign.partVersion
+        }];
+
+        // Step 3: Send the PUT request with the non-stale data.
+        const putResponse = await fetch(`${ROBOT_INSTANCES_API_URL}?id=${currentInstance._id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assignedParts: updatedAssignedParts }),
+        });
+
+        if (!putResponse.ok) {
+            throw new Error(`HTTP error! status: ${putResponse.status}`);
+        }
+
+        // Step 4: After a successful update, refresh all data for the UI.
+        await fetchData();
+        setMessage("Part assigned successfully!");
+        setAssignPartBarcode('');
     } catch (e) {
-      console.error("Failed to assign part:", e);
-      setMessage("Failed to assign part. Check your API and try again.");
+        console.error("Failed to assign part:", e);
+        setMessage("Failed to assign part. Check your API and try again.");
     }
-  };
+};
+
 
   const handleUpdateInstanceNotes = async () => {
     if (!selectedInstance || updateInstanceNotes === selectedInstance.notes) return;
@@ -366,9 +382,16 @@ const RobotManagement = ({
   const handleRemovePartFromInstance = async (partId) => {
     if (!selectedInstance) return;
 
-    const updatedAssignedParts = selectedInstance.assignedParts.filter(p => p._id !== partId);
+    // Step 1: GET the most current robot instance data from the database.
+    const getResponse = await fetch(`${ROBOT_INSTANCES_API_URL}?id=${selectedInstance._id}`);
+    if (!getResponse.ok) {
+        throw new Error(`Failed to fetch current robot instance: ${getResponse.status}`);
+    }
+
+    const currentInstance = await getResponse.json();
 
     try {
+        const updatedAssignedParts = currentInstance.assignedParts.filter(p => p._id !== partId);
         const response = await fetch(`${ROBOT_INSTANCES_API_URL}?id=${selectedInstance._id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },

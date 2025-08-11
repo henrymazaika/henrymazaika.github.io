@@ -168,7 +168,8 @@ app.delete('/api/robot-designs', async (req, res) => {
 app.get('/api/robot-instances', async (req, res) => {
     try {
         const db = await getDb();
-        const instances = await getRobotInstances(db);
+        const id = req.query.id
+        const instances = await getRobotInstances(db, id);
         res.json(instances);
     } catch (error) {
         console.error('Failed to get robot instances:', error);

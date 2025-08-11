@@ -71,10 +71,13 @@ async function deleteRobotDesign(db, id) {
  * @param {object} db - The MongoDB database client.
  * @returns {Promise<Array>} An array of robot instance documents.
  */
-async function getRobotInstances(db) {
+async function getRobotInstances(db, id = null) {
     const collection = db.collection(instancesCollectionName);
-    const instances = await collection.find({}).toArray();
-    return instances;
+    if (id) {
+      return await collection.findOne({ _id: new ObjectId(id) })
+    } else {
+      return await collection.find({}).toArray();
+    }
 }
 
 /**
