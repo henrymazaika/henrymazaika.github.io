@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/henrymazaika/henrymazaika.github.io/static/css/main.0ce39d00.css",
+    "main.js": "/henrymazaika/henrymazaika.github.io/static/js/main.55ddb5e1.js",
+    "index.html": "/henrymazaika/henrymazaika.github.io/index.html",
+    "main.0ce39d00.css.map": "/henrymazaika/henrymazaika.github.io/static/css/main.0ce39d00.css.map",
+    "main.55ddb5e1.js.map": "/henrymazaika/henrymazaika.github.io/static/js/main.55ddb5e1.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.0ce39d00.css",
+    "static/js/main.55ddb5e1.js"
+  ]
+}
