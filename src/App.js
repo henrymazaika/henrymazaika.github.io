@@ -277,73 +277,79 @@ const RobotManagement = ({
   };
 
   const handleAssignPart = async () => {
+    // Check for selected instance and barcode
     if (!selectedInstance || !assignPartBarcode) {
-      setMessage("Please select a robot instance and enter a part barcode.");
-      return;
+        setMessage("Please select a robot instance and enter a part barcode.");
+        return;
     }
 
+    // Find the part to assign
     const partToAssign = parts.find(p => p.barcode === assignPartBarcode);
     if (!partToAssign) {
-      setMessage(`Part with barcode '${assignPartBarcode}' not found.`);
-      return;
+        setMessage(`Part with barcode '${assignPartBarcode}' not found.`);
+        return;
     }
 
     // Find the design for this instance
     const design = robotDesigns.find(d => d._id === selectedInstance.designId);
     if (!design) {
-      setMessage("Robot design not found for this instance.");
-      return;
+        setMessage("Robot design not found for this instance.");
+        return;
     }
 
     // Check if the part type is required by the design
     const requiredPart = design.requiredParts.find(req => req.type === partToAssign.type);
     if (!requiredPart) {
-      setMessage(`Part type '${partToAssign.type}' is not required by this robot design.`);
-      return;
+        setMessage(`Part type '${partToAssign.type}' is not required by this robot design.`);
+        return;
     }
 
     // Check if the required quantity is already fulfilled
     const partsOfTypeAssigned = selectedInstance.assignedParts.filter(p => p.type === partToAssign.type).length;
     if (partsOfTypeAssigned >= requiredPart.quantity) {
-      setMessage(`All required parts of type '${partToAssign.type}' are already assigned.`);
-      return;
+        setMessage(`All required parts of type '${partToAssign.type}' are already assigned.`);
+        return;
     }
 
     // Check if the part is already assigned to this or another robot
     const isPartAlreadyAssigned = robotInstances.some(instance =>
-      instance.assignedParts.some(p => p._id === partToAssign._id)
+        instance.assignedParts.some(p => p._id === partToAssign._id)
     );
     if (isPartAlreadyAssigned) {
-      setMessage(`Part with barcode '${assignPartBarcode}' is already assigned to a robot.`);
-      return;
+        setMessage(`Part with barcode '${assignPartBarcode}' is already assigned to a robot.`);
+        return;
     }
 
-    const updatedAssignedParts = [...selectedInstance.assignedParts, {
-      _id: partToAssign._id,
-      barcode: partToAssign.barcode,
-      type: partToAssign.type,
-      partVersion: partToAssign.partVersion
-    }];
+    // The key change: create the new part object to send to the backend
+    const newPartData = {
+        _id: partToAssign._id,
+        barcode: partToAssign.barcode,
+        type: partToAssign.type,
+        partVersion: partToAssign.partVersion
+    };
 
     try {
-      const response = await fetch(`${ROBOT_INSTANCES_API_URL}?id=${selectedInstance._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignedParts: updatedAssignedParts }),
-      });
+        // We now call a specific API endpoint to add a part
+        const response = await fetch(`${ROBOT_INSTANCES_API_URL}/add-part/${selectedInstance._id}`, {
+            method: 'PUT', // Using PUT to update the resource
+            headers: { 'Content-Type': 'application/json' },
+            // We only send the new part's data, not the whole updated array
+            body: JSON.stringify({ part: newPartData }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      await fetchData();
-      setMessage("Part assigned successfully!");
-      setAssignPartBarcode('');
+        // Fetch all data to ensure a full refresh of the UI
+        await fetchData();
+        setMessage("Part assigned successfully!");
+        setAssignPartBarcode('');
     } catch (e) {
-      console.error("Failed to assign part:", e);
-      setMessage("Failed to assign part. Check your API and try again.");
+        console.error("Failed to assign part:", e);
+        setMessage("Failed to assign part. Check your API and try again.");
     }
-  };
+};
 
   const handleUpdateInstanceNotes = async () => {
     if (!selectedInstance || updateInstanceNotes === selectedInstance.notes) return;
