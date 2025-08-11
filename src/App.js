@@ -382,7 +382,6 @@ const RobotManagement = ({
   const handleRemovePartFromInstance = async (partId) => {
     if (!selectedInstance) return;
 
-    // Step 1: GET the most current robot instance data from the database.
     const getResponse = await fetch(`${ROBOT_INSTANCES_API_URL}?id=${selectedInstance._id}`);
     if (!getResponse.ok) {
         throw new Error(`Failed to fetch current robot instance: ${getResponse.status}`);
