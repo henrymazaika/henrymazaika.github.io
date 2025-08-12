@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import './index.css';
 
 // Base URLs for the API
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+                   ? 'https://backend-henrys-projects-1207eb90.vercel.app/api'
+                   : 'http://localhost:3001/api';
+// const API_BASE_URL = 'https://backend-pssli25ih-henrys-projects-1207eb90.vercel.app/api'
 const PARTS_API_URL = `${API_BASE_URL}/parts`;
 const TYPES_API_URL = `${API_BASE_URL}/part-types`;
 const ROBOT_DESIGNS_API_URL = `${API_BASE_URL}/robot-designs`;

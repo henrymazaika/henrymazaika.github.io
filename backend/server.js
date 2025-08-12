@@ -7,8 +7,8 @@ const { getRobotDesigns, addRobotDesign, updateRobotDesign, deleteRobotDesign, g
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(bodyParser.json());
 app.use(cors());
+app.use(bodyParser.json());
 
 // Health check endpoint
 app.get('/', (req, res) => {
@@ -17,6 +17,13 @@ app.get('/', (req, res) => {
 
 // Parts API Routes
 app.get('/api/parts', async (req, res) => {
+    if (req.method === 'OPTIONS') {
+    // Handle the preflight request
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins or specify specific origins
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Allow specific headers
+    res.status(200).end(); // Respond with 200 OK and terminate the response
+  } else {
     try {
         const db = await getDb();
         const parts = await getParts(db);
@@ -25,6 +32,7 @@ app.get('/api/parts', async (req, res) => {
         console.error('Failed to get parts:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
+}
 });
 
 app.post('/api/parts', async (req, res) => {
@@ -220,16 +228,4 @@ app.delete('/api/robot-instances', async (req, res) => {
     }
 });
 
-async function startServer() {
-    try {
-        await connectToDb();
-        app.listen(PORT, () => {
-            console.log(`Local API server is running on http://localhost:${PORT}`);
-        });
-    } catch (e) {
-        console.error('Failed to start server:', e);
-        process.exit(1);
-    }
-}
-
-startServer();
+module.exports = app
